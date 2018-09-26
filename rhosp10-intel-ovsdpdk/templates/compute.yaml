@@ -1,0 +1,174 @@
+heat_template_version: 2015-04-30
+
+description: >
+  Software Config to drive os-net-config to configure VLANs for the
+  compute role.
+
+parameters:
+  ControlPlaneIp:
+    default: ''
+    description: IP address/subnet on the ctlplane network
+    type: string
+  ExternalIpSubnet:
+    default: ''
+    description: IP address/subnet on the external network
+    type: string
+  InternalApiIpSubnet:
+    default: ''
+    description: IP address/subnet on the internal API network
+    type: string
+  StorageIpSubnet:
+    default: ''
+    description: IP address/subnet on the storage network
+    type: string
+  StorageMgmtIpSubnet:
+    default: ''
+    description: IP address/subnet on the storage mgmt network
+    type: string
+  TenantIpSubnet:
+    default: ''
+    description: IP address/subnet on the tenant network
+    type: string
+  ManagementIpSubnet: # Only populated when including environments/network-management.yaml
+    default: ''
+    description: IP address/subnet on the management network
+    type: string
+  DpdkBondInterfaceOvsOptions:
+    default: 'bond_mode=balance-tcp lacp=active'
+    description: The ovs_options string for the bond interface. Set things like
+                 lacp=active and/or bond_mode=balance-slb using this option.
+    type: string
+  LinuxBondInterfaceOptions:
+    default: 'balance-slb'
+    description: The ovs_options string for the bond interface. Set things like 
+                 lacp=active and/or bond_mode=balance-slb using this option.
+    type: string
+  InternalApiNetworkVlanID:
+    default: 20
+    description: Vlan ID for the internal_api network traffic.
+    type: number
+  StorageNetworkVlanID:
+    default: 30
+    description: Vlan ID for the storage network traffic.
+    type: number
+  TenantNetworkVlanID:
+    default: 50
+    description: Vlan ID for the tenant network traffic.
+    type: number
+  ManagementNetworkVlanID:
+    default: 60
+    description: Vlan ID for the management network traffic.
+    type: number
+  ControlPlaneSubnetCidr:
+    default: '24'
+    description: The subnet CIDR of the control plane network.
+    type: string
+  ControlPlaneDefaultRoute:
+    description: The default route of the control plane network.
+    type: string
+  ExternalInterfaceDefaultRoute:
+    default: '10.0.0.1'
+    description: The default route of the external network.
+    type: string
+  ManagementInterfaceDefaultRoute:
+    default: unset
+    description: The default route of the management network.
+    type: string
+  DnsServers:
+    default: []
+    description: A list of DNS servers (2 max for some implementations) that will be added to resolv.conf.
+    type: comma_delimited_list
+  EC2MetadataIp:
+    description: The IP address of the EC2 metadata server.
+    type: string
+
+resources:
+  OsNetConfigImpl:
+    type: OS::Heat::StructuredConfig
+    properties:
+      group: os-apply-config
+      config:
+        os_net_config:
+          network_config:
+            -
+              type: interface
+              name: eno1 #replace me with real interface
+              use_dhcp: false
+              dns_servers: {get_param: DnsServers}
+              addresses:
+                -
+                  ip_netmask:
+                    list_join:
+                      - '/'
+                      - - {get_param: ControlPlaneIp}
+                        - {get_param: ControlPlaneSubnetCidr}
+              routes:
+                -
+                  ip_netmask: 169.254.169.254/32
+                  next_hop: {get_param: EC2MetadataIp}
+                -
+                  default: true
+                  next_hop: {get_param: ControlPlaneDefaultRoute}
+            -
+                type: linux_bond
+                name: bond0
+                use_dhcp: false
+                bonding_options: "mode=4 lacp_rate=1 updelay=1500 miimon=200"
+                members:
+                    -
+                      type: interface
+                      name: enp134s0f0  #replace me with real interface
+                    -
+                      type: interface
+                      name: enp134s0f1  #replace me with real interface
+                      primary: true
+            -
+                 type: vlan
+                 device: bond0
+                 vlan_id: {get_param: InternalApiNetworkVlanID}
+                 addresses:
+                   -
+                      ip_netmask: {get_param: InternalApiIpSubnet}
+            -
+                 type: vlan
+                 device: bond0
+                 vlan_id: {get_param: StorageNetworkVlanID}
+                 addresses:
+                   -
+                      ip_netmask: {get_param: StorageIpSubnet}
+            -
+                 type: vlan
+                 device: bond0
+                 vlan_id: {get_param: TenantNetworkVlanID}
+                 addresses:
+                   -
+                      ip_netmask: {get_param: TenantIpSubnet}
+            -
+              type: ovs_user_bridge
+              name: br-link
+              use_dhcp: false
+              members:
+                -
+                  type: ovs_dpdk_bond
+                  name: dpdkbond0
+                  ovs_options: {get_param: DpdkBondInterfaceOvsOptions}
+                  members:
+                    -
+                      type: ovs_dpdk_port
+                      name: dpdk0
+                      members:
+                        - 
+                          type: interface
+                          name: enp47s0f0  #replace me with real interface
+                    -
+                      type: ovs_dpdk_port
+                      name: dpdk1
+                      members:
+                        - 
+                          type: interface
+                          name: enp47s0f1  #replace me with real interface
+outputs:
+  OS::stack_id:
+    description: The OsNetConfigImpl resource.
+    value: {get_resource: OsNetConfigImpl}
+
