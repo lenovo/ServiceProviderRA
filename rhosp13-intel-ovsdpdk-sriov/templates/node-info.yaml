@@ -1,0 +1,14 @@
+parameter_defaults:
+  OvercloudControllerFlavor: control
+  OvercloudComputeOvsDpdkFlavor: computeovsdpdk
+  OvercloudComputeSriovFlavor: computesriov
+
+  ControllerCount: 3
+  #put count for OVS-DPDK node
+  ComputeOvsDpdkCount: 2
+  #put count for SRIOV node
+  ComputeSriovCount: 3
+  ComputeOvsDpdkSchedulerHints: 
+      'capabilities:profile': 'computeovsdpdk'
+  ComputeSriovSchedulerHints:
+      'capabilities:profile': 'computesriov'

@@ -1,0 +1,39 @@
+# A Heat environment file which can be used to enable the
+# use of an externally managed Ceph cluster.
+resource_registry:
+  OS::TripleO::Services::CephExternal: /usr/share/openstack-tripleo-heat-templates/puppet/services/ceph-external.yaml
+  OS::TripleO::Services::CephMon: OS::Heat::None
+  OS::TripleO::Services::CephClient: OS::Heat::None
+  OS::TripleO::Services::CephOSD: OS::Heat::None
+  OS::TripleO::Services::SwiftProxy: OS::Heat::None
+  OS::TripleO::Services::SwiftStorage: OS::Heat::None
+  OS::TripleO::Services::SwiftRingBuilder: OS::Heat::None
+
+parameter_defaults:
+  # NOTE: These example parameters are required when using CephExternal
+  CephClusterFSID: 'ba41970b-7d3b-4101-a96e-1c4ba58108ac' #replace me with real Ceph cluster fsid
+  CephClientKey: 'AQBKuHFbxj3ROBAAfeBUESciizuB/62cZL9KFA==' #replace me with real client key
+  CephExternalMonHost: '192.168.80.182,192.168.80.183,192.168.80.184' #replace me with real Ceph MON host IPs
+
+
+  # the following parameters enable Ceph backends for Cinder, Glance, Gnocchi and Nova
+  NovaEnableRbdBackend: true
+  CinderEnableRbdBackend: true
+  CinderBackupBackend: ceph
+  GlanceBackend: rbd
+  GnocchiBackend: rbd
+  # If the Ceph pools which host VMs, Volumes and Images do not match these
+  # names OR the client keyring to use is not named 'openstack',  edit the
+  # following as needed.
+  NovaRbdPoolName: cloud5_nova #replace me with real pool name for this cloud 
+  CinderRbdPoolName: cloud5_volumes #replace me with real pool name for this cloud 
+  CinderBackupRbdPoolName: cloud5_backups #replace me with real pool name for this cloud 
+  GlanceRbdPoolName: cloud5_images #replace me with real pool name for this cloud 
+  GnocchiRbdPoolName: cloud5_metrics #replace me with real pool name for this cloud 
+  CephClientUserName: cloud5_openstack #replace me with real pool name for this cloud 
+
+  # finally we disable the Cinder LVM backend
+  CinderEnableIscsiBackend: false
+
+  # Backward compatibility setting, will be removed in the future
+  CephAdminKey: ''

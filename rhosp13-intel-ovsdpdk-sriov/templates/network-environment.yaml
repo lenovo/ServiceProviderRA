@@ -1,0 +1,110 @@
+#This file is an example of an environment file for defining the isolated
+#networks and related parameters.
+resource_registry:
+  # Network Interface templates to use (these files must exist)
+  OS::TripleO::Compute::Net::SoftwareConfig:
+    /home/stack/templates/compute.yaml
+  OS::TripleO::Controller::Net::SoftwareConfig:
+    /home/stack/templates/controller.yaml
+  OS::TripleO::ComputeOvsDpdk::Net::SoftwareConfig:
+    /home/stack/templates/compute-dpdk.yaml
+  OS::TripleO::ComputeSriov::Net::SoftwareConfig:
+    /home/stack/templates/compute-sriov.yaml
+  OS::TripleO::NodeExtraConfigPost: /home/stack/templates/post-install.yaml
+  OS::TripleO::Services::NeutronSriovAgent: /usr/share/openstack-tripleo-heat-templates/docker/services/neutron-sriov-agent.yaml
+  OS::TripleO::Services::NeutronSriovHostConfig: /usr/share/openstack-tripleo-heat-templates/puppet/services/neutron-sriov-host-config.yaml
+
+parameter_defaults:
+  # This section is where deployment-specific configuration is done
+  # CIDR subnet mask length for provisioning network
+  ControlPlaneSubnetCidr: '24'
+  # Gateway router for the provisioning network (or Undercloud IP)
+  ControlPlaneDefaultRoute: 172.20.5.1  #replace me with control plane network IP
+  EC2MetadataIp: 172.20.5.1 # relace me with generally the IP of the Undercloud
+  # Customize the IP subnets to match the local environment
+  InternalApiNetCidr: 172.22.5.0/24   #replace me to suit real environment
+  StorageNetCidr: 192.168.80.0/24     #replace me to suit real environment
+  StorageMgmtNetCidr: 172.24.5.0/24   #replace me to suit real environment
+  TenantNetCidr: 172.25.5.0/24        #replace me to suit real environment
+  ExternalNetCidr: 10.240.70.0/23    #replace me to suit real environment
+  # Customize the VLAN IDs to match the local environment
+  InternalApiNetworkVlanID: 205      #replace me to suit real environment
+  StorageNetworkVlanID: 305          #replace me to suit real environment
+  StorageMgmtNetworkVlanID: 405      #replace me to suit real environment
+  TenantNetworkVlanID: 505           #replace me to suit real environment
+  ExternalNetworkVlanID: 1001        #replace me to suit real environment
+  # Customize the IP ranges on each network to use for static IPs and VIPs
+  InternalApiAllocationPools: [{'start': '172.22.5.10', 'end': '172.22.5.200'}]    #replace me to suit real environment
+  StorageAllocationPools: [{'start': '172.23.5.10', 'end': '172.23.5.200'}]     #replace me to suit real environment
+  StorageAllocationPools: [{'start': '192.168.80.40', 'end': '192.168.80.59'}]    #replace me to suit real environment
+  TenantAllocationPools: [{'start': '172.25.5.10', 'end': '172.25.5.200'}]    #replace me to suit real environment
+  ExternalAllocationPools: [{'start': '10.240.71.238', 'end': '10.240.71.245'}]   #replace me to suit real environment
+  # Leave room if the external network is also used for floating IPs
+  # Gateway router for the external network
+  ExternalInterfaceDefaultRoute: 10.240.70.1    #replace me to suit real environment
+  # Define the DNS servers (maximum 2) for the overcloud nodes
+  DnsServers: ["10.240.0.10", "10.240.0.11"]   #replace me to suit real environment
+
+  # Set to empty string to enable multiple external networks or VLANs
+  NeutronExternalNetworkBridge: "''"
+  # The tunnel type for the tenant network (vxlan or gre). Set to '' to disable tunneling.
+  NeutronTunnelTypes: ''
+  NeutronNetworkType: 'vlan,flat'
+  NeutronBridgeMappings: 'datacentre:br-ex,prov704:enp47s0f1,prov703:enp47s0f0,dpdk0:br-link'
+  NeutronNetworkVLANRanges: 'datacentre:1001:1001,prov704:704:704,prov703:703:703,dpdk0:701:702'
+  DpdkBondInterfaceOvsOptions: "bond_mode=balance-tcp lacp=active" # replace me to match real configuration
+  SriovBondInterfaceOvsOptions: "bond_mode=balance-tcp lacp=active" # replace me to match real configuration
+  BondInterfaceOvsOptions: "mode=4 lacp_rate=1 updelay=1500 miimon=200" # replace me to match real configuration
+  NeutronMechanismDrivers: "openvswitch,sriovnicswitch"
+  ComputeSriovParameters:
+    NovaSchedulerDefaultFilters: "RamFilter,ComputeFilter,ServerGroupAffinityFilter,ServerGroupAntiAffinityFilter,AvailabilityZoneFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,PciPassthroughFilter,NUMATopologyFilter"
+    KernelArgs: "isolcpus=4-19,24-39,44-59,64-79 nohz_full=4-19,24-39,44-59,64-79 default_hugepagesz=1GB hugepagesz=1G hugepages=192 iommu=pt intel_iommu=on"
+    SriovNeutronNetworkType: 'flat'
+    NovaVcpuPinSet: "4-15,24-35,44-55,64-75"
+    IsolCpusList: "4-19,24-39,44-59,64-79"
+    NeutronSriovNumVFs:
+       - enp47s0f1:16:switchdev
+       - enp47s0f0:16:switchdev
+    NeutronPhysicalDevMappings: "prov704:enp47s0f1,prov703:enp47s0f0"
+    NovaPCIPassthrough:
+       - devname: "enp47s0f1"
+         physical_network: "prov704"
+       - devname: "enp47s0f0"
+         physical_network: "prov703"
+    TunedProfileName: "cpu-partitioning"
+    NeutronSupportedPCIVendorDevs: ['8086:158b']
+
+  ComputeOvsDpdkParameters:
+    NovaVcpuPinSet: "4-15,24-35,44-55,64-75"
+    NovaSchedulerDefaultFilters: "RamFilter,ComputeFilter,ServerGroupAffinityFilter,ServerGroupAntiAffinityFilter,AvailabilityZoneFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,PciPassthroughFilter,NUMATopologyFilter"
+    KernelArgs: "isolcpus=4-19,24-39,44-59,64-79 nohz_full=4-19,24-39,44-59,64-79 default_hugepagesz=1GB hugepagesz=1G hugepages=192 iommu=pt intel_iommu=on"
+    IsolCpusList: "4-19,24-39,44-59,64-79"
+    OvsEnableDpdk: True
+    TunedProfileName: "cpu-partitioning"
+    NovaReservedHostMemory: 4096
+    OvsDpdkSocketMemory: "2048,2048"
+    OvsDpdkMemoryChannels: "4"
+    OvsPmdCoreList: "16,17,18,19,36,37,38,39,56,57,58,59,76,77,78,79"
+    DpdkBondInterfaceOvsOptions: "bond_mode=balance-tcp lacp=active"
+    BondInterfaceOvsOptions: "mode=4 lacp_rate=1 updelay=1500 miimon=200"
+    VhostuserSocketGroup: "hugetlbfs"
+
+
+
+
+  NeutronEnableIsolatedMetadata: true
+  # DHCP always provides metadata route to VM.
+  NeutronEnableForceMetadata: true
+    # Configure the classname of the firewall driver to use for implementing security groups.
+  NeutronOVSFirewallDriver: openvswitch
+  SshServerOptions:
+     UseDns: 'no'
+
+  MysqlMaxConnections: 8192
+
+  controllerExtraConfig:
+    keystone::token_provider: 'fernet'
+    neutron::agents::dhcp::enable_isolated_metadata: true
+    ceilometer::expirer::time_to_live: 7776000
+    horizon::cinder_options:
+        enable_backup: True
